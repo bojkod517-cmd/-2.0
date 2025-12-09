@@ -1,29 +1,29 @@
 import asyncio
 from aiogram import Bot, Dispatcher, F
-from aiogram.types import Message
+from aiogram.types import Message, ChatMemberUpdated
 import os
 
-TOKEN = os.getenv("7951787769:AAEtwsM7_wxuSed770XAShIyZ5GRzne9tFs")
+# --- ВАЖЛИВО ---
+# УСТАНОВИ В RENDER/RAILWAY переменную: BOT_TOKEN = твой токен
+TOKEN = os.getenv("BOT_TOKEN")
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# --- База пользователей ---
+# Базы
 banned = set()
 rewards = {}
-
-# --- Список груп, куда добавлен бот ---
 admin_groups = set()
 
-
-# Когда бот добавлен в группу
-@dp.chat_member()
-async def bot_added(event):
-    if event.new_chat_member and event.new_chat_member.user.id == (await bot.get_me()).id:
+# Коли бот доданий в групу
+@dp.chat_member(ChatMemberUpdated)
+async def bot_added(event: ChatMemberUpdated):
+    me = await bot.get_me()
+    if event.new_chat_member.user.id == me.id:
         admin_groups.add(event.chat.id)
 
 
-# Бан
+# --- БАН ---
 @dp.message(F.text.lower() == "бан")
 async def ban_user(msg: Message):
     if msg.reply_to_message:
@@ -34,7 +34,7 @@ async def ban_user(msg: Message):
         await msg.answer("Ответь на сообщение пользователя, которого нужно забанить.")
 
 
-# Разбан
+# --- РАЗБАН ---
 @dp.message(F.text.lower() == "разбан")
 async def unban_user(msg: Message):
     if msg.reply_to_message:
@@ -45,55 +45,48 @@ async def unban_user(msg: Message):
         await msg.answer("Ответь на сообщение пользователя, которого нужно разбанить.")
 
 
-# Список забаненных
+# --- СПИСОК БАННЕД ---
 @dp.message(F.text.lower() == "забаненные")
 async def list_banned(msg: Message):
     if not banned:
         await msg.answer("Список пуст.")
     else:
-        text = "\n".join(str(u) for u in banned)
-        await msg.answer(f"Забаненные:\n{text}")
+        text = "\n".join(str(i) for i in banned)
+        await msg.answer("Забаненные:\n" + text)
 
 
-# Награды — много разных
+# --- НАГРАДА ---
 ALL_REWARDS = [
-    "🏆 «Легендарный герой»",
-    "🎖 «Мегамозг недели»",
-    "⭐ «Лучший пользователь суток»",
-    "🔥 «Самый активный»",
-    "💎 «Алмазный участник»",
-    "👑 «Король чата»",
-    "⚡ «Император активности»",
-    "🎯 «Мастер точности»",
-    "💼 «Лучший работяга»",
-    "🐺 «Волк-одиночка»",
-    "🐉 «Драконий ранг»",
-    "📢 «Оратор месяца»",
-    "💡 «Идея года»",
-    "📊 «Статист легенды»",
-    "🚀 «Сверхактивный»",
-    "🔱 «Элитный участник»"
+    "🏆 «Легендарный герой»", "🎖 «Мегамозг недели»",
+    "⭐ «Лучший пользователь суток»", "🔥 «Самый активный»",
+    "💎 «Алмазный участник»", "👑 «Король чата»",
+    "⚡ «Император активности»", "🎯 «Мастер точности»",
+    "💼 «Лучший работяга»", "🐺 «Волк-одиночка»",
+    "🐉 «Драконий ранг»", "📢 «Оратор месяца»",
+    "💡 «Идея года»", "📊 «Статист легенды»",
+    "🚀 «Сверхактивный»", "🔱 «Элитный участник»"
 ]
-
 
 @dp.message(F.text.lower() == "награда")
 async def give_reward(msg: Message):
-    user_id = msg.from_user.id
     from random import choice
     reward = choice(ALL_REWARDS)
-
-    rewards[user_id] = reward
-
+    rewards[msg.from_user.id] = reward
     await msg.answer(f"🎉 Вы получили награду:\n{reward}")
 
 
-# Пересылка обращений в админ-группы
+# --- ПЕРЕСЫЛКА ВСЕХ СООБЩЕНИЙ В АДМИН-ГРУППЫ ---
 @dp.message()
 async def redirect(msg: Message):
     if msg.from_user.id in banned:
-        return  # игнорим забаненных
+        return
 
-    text = f"📩 ПОДДЕРЖКА!!!\nОт: @{msg.from_user.username}\nID: {msg.from_user.id}\n\n«{msg.text}»"
+    text = (
+        "📩 ПОДДЕРЖКА!!!\n"
+        f"От: @{msg.from_user.username}\n"
+        f"ID: {msg.from_user.id}\n\n"
+        f"«{msg.text}»"
+    )
 
     for chat_id in admin_groups:
         try:
